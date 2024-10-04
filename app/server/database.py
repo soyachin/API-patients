@@ -1,8 +1,14 @@
-from http.client import HTTPException
 import motor.motor_asyncio
+import os, logging
+import pytz
+from datetime import datetime
 
-MONGO_URI = "mongodb://localhost:27017/"
-client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URI)
+def convert_to_peru_timezone(dt: datetime) -> datetime:
+    peru_tz = pytz.timezone('America/Lima')
+    return dt.astimezone(peru_tz)
+
+mongo_uri = os.getenv("MONGO_URI")
+client = motor.motor_asyncio.AsyncIOMotorClient(mongo_uri)
 database = client.P1pacientes_test
 collection = database.get_collection("Pacientes")
 
@@ -33,13 +39,22 @@ async def modify_paciente(id: str, data: dict):
         return False
     paciente = await collection.find_one({"_id": id})
     if paciente:
-        updated_paciente = await collection.update_one(
-            {"_id": id}, {"$set": data}
-        )
-        if updated_paciente:
-            return True
-        return False
+        try:
+            if 'fecha_nacimiento' in data:
+                data['fecha_nacimiento'] = convert_to_peru_timezone(data['fecha_nacimiento'])
+            if 'seguro' in data and 'vencimiento' in data['seguro']:
+                data['seguro']['vencimiento'] = convert_to_peru_timezone(data['seguro']['vencimiento'])
 
+
+            updated_paciente = await collection.update_one(
+                {"_id": id}, {"$set": data}
+            )
+            if updated_paciente.modified_count > 0:
+                return True
+            return False
+        except Exception as e:
+            logging.error(f"Error actualizando paciente: {e}")
+            raise e
 
 # DELETE
 async def remove_paciente(id: str):

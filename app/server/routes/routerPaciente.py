@@ -39,10 +39,10 @@ async def get_all_pacientes():
 
 
 
-#TODO: FIX ADDING SEGURO ON ITS OWN
 @router.put("/{id}", response_description="Paciente")
 async def put_paciente(id:str, req: PacienteUpdate = Body(...)):
     req = {k: v for k, v in req.model_dump().items() if v is not None}
+    print(f"Datos procesados para actualizar: {req}")  # Para depuración
     updated_paciente = await modify_paciente(id, req)
     if updated_paciente:
         return response_model(updated_paciente, "Paciente modificado.")
